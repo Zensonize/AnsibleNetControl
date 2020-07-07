@@ -1,0 +1,11 @@
+version: "3.7"
+
+services: 
+    ansible:
+        image: ubuntu:20.04
+        working_dir: /ansible
+        ports: 
+            - 4000:4000
+        volumes: 
+            - ${PWD}/ansible:/ansible
+        command: sh -c "chmod +x setup.sh && ./setup.sh"
