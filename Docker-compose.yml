@@ -8,4 +8,5 @@ services:
             - 4000:4000
         volumes: 
             - ${PWD}/ansible:/ansible
+            - ${PWD}/temp:/temp
         command: sh -c "chmod +x setup.sh && ./setup.sh"

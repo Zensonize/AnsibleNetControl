@@ -1,0 +1,32 @@
+---
+    -   name: export device configuration to JSON files
+        connection: local
+        gather_facts: false
+        hosts:
+            -   all
+        
+        tasks: 
+            # -   name: debug host vars
+            #     debug:
+            #         msg: "{{hostvars[inventory_hostname]}}"
+
+            -   name: gather nexus device information
+                nxos_facts:
+                    gather_subset:
+                        - "!config"
+                register: nexus_facts
+                when:
+                    -   ansible_network_os == "nxos"
+            
+            -   name: gather ios device information
+                ios_facts:
+                    gather_subset:
+                        - "!config"
+                register: ios_facts
+                when:
+                    -   ansible_network_os == "ios"
+
+            -   name: export facts to "{{inventory_hostname}}"-facts".json file
+                copy:
+                    content: "{{nexus_facts}}"
+                    dest: "../temp/{{inventory_hostname}}-{{ansible_network_os}}.json"
