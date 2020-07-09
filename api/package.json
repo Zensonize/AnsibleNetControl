@@ -8,5 +8,12 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": ""
+  "description": "",
+  "dependencies": {
+    "express": "^4.17.1",
+    "got": "^11.5.0",
+    "nodemon": "^2.0.4",
+    "pg": "^8.2.2",
+    "xmlhttprequest": "^1.8.0"
+  }
 }

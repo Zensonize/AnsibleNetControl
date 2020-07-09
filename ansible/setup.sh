@@ -1,6 +1,6 @@
-apt update -y
-apt install ansible -y
-apt install python3-pip -y
+apt -yqq update 
+apt -yqq install ansible 
+apt -yqq install python3-pip 
 pip3 install flask
 pip3 install paramiko
 python3 --version

@@ -10,3 +10,24 @@ services:
             - ${PWD}/ansible:/ansible
             - ${PWD}/temp:/temp
         command: sh -c "chmod +x setup.sh && ./setup.sh"
+    db:
+        image: postgres:13-alpine
+        ports:
+            - 7000:5432
+        volumes:
+            - ${PWD}/db/data:/var/lib/postgresql/data
+            - ${PWD}/db/sql:/docker-entrypoint-initdb.d
+        environment:
+            POSTGRES_USER: me 
+            POSTGRES_PASSWORD: password
+            POSTGRES_DB: ansibru
+            TZ: 'Asia/Bangkok'
+            PGTZ: 'Asia/Bangkok'
+    api:
+        image: node:12-alpine
+        command: sh -c "npm install && npm install -g nodemon && nodemon index.js"
+        ports: 
+            - 3000:3000
+        working_dir: /api
+        volumes: 
+            - ${PWD}/api:/api
