@@ -10,6 +10,8 @@ services:
             - ${PWD}/ansible:/ansible
             - ${PWD}/temp:/temp
         command: sh -c "chmod +x setup.sh && ./setup.sh"
+        environment:
+            PYTHONUNBUFFERED: 1
     db:
         image: postgres:13-alpine
         ports:
@@ -23,11 +25,3 @@ services:
             POSTGRES_DB: ansibru
             TZ: 'Asia/Bangkok'
             PGTZ: 'Asia/Bangkok'
-    api:
-        image: node:12-alpine
-        command: sh -c "npm install && npm install -g nodemon && nodemon index.js"
-        ports: 
-            - 3000:3000
-        working_dir: /api
-        volumes: 
-            - ${PWD}/api:/api
