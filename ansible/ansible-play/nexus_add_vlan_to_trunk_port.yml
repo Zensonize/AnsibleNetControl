@@ -1,0 +1,22 @@
+---
+    -   name: nexus add vlan play
+        connection: local
+        gather_facts: false
+        hosts: "{{h}}"
+
+        tasks:
+            -   name: parse incoming configuration
+                set_fact:
+                    in_cfg: "{{jsonString | from_json}}"
+
+            -   name: add vlan to trunk interface by merging with old device configuration
+                nxos_l2_interfaces:
+                    config:
+                    -   name: "{{item | string}}"
+                        trunk:
+                            allowed_vlans: "{{in_cfg['vlan']}}"
+                    state: merged
+                with_items:
+                    - "{{in_cfg['interfaces'] | list}}"
+                when:
+                    -   ansible_network_os == "nxos"

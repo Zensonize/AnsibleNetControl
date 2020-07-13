@@ -1,0 +1,21 @@
+---
+    -   name: export device configuration to JSON files
+        connection: local
+        gather_facts: false
+        hosts:
+            -   nexus
+        
+        tasks: 
+
+            -   name: gather nexus device information
+                nxos_facts:
+                    gather_subset:
+                        - config
+                register: nexus_config
+                when:
+                    -   ansible_network_os == "nxos"
+
+            -   name: "export config to {{inventory_hostname}}-{{ansible_network_os}}-config.json file"
+                copy:
+                    content: "{{nexus_config}}"
+                    dest: "../temp/{{inventory_hostname}}-{{ansible_network_os}}-config.json"

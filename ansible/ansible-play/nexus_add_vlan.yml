@@ -1,0 +1,22 @@
+---
+    -   name: nexus add vlan playbook
+        connection: local
+        gather_facts: false
+        hosts: "{{h}}"
+
+        tasks:
+            -   name: parse incoming configuration
+                set_fact:
+                    in_cfg: "{{cmd | from_json }}"
+
+            -   name: merge provided configuratioin with device configuratioin
+                nxos_vlans:
+                    config:
+                        -   vlan_id: "{{item.split('-')[0] | int}}"
+                            name: "{{item.split('-')[1] | string}}"
+                            state: active
+                    state: merged
+                with_items:
+                    "{{in_cfg['vl'].split(',')}}"
+                when:
+                    -   ansible_network_os == "nxos"

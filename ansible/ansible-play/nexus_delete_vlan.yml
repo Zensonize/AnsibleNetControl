@@ -1,0 +1,30 @@
+---
+    -   name: nexus add vlan playbook
+        connection: local
+        gather_facts: false
+        hosts: "{{h}}"
+        
+        tasks:
+            -   name: parse incoming configuration
+                set_fact:
+                    in_cfg: "{{jsonString | from_json}}"
+
+            -   name: remove configuration from access port
+                nxos_l2_interfaces:
+                    config:
+                        -   name: "{{item | string}}"
+                    state: deleted
+                with_items:
+                    - "{{in_cfg[inventory_hostname]['accessIF'] | list}}"
+
+            -   name: remove vlan from trunk port without native vlan
+                nxos_l2_interfaces:
+                    config:
+                        -   name: "{{item | string}}"
+                            trunk:
+                                allowed_vlans: "{{in_cfg[inventory_hostname]['trunkIF'][item]['allowed_vlan'] | string}}"
+                    state: replaced
+                    with_items:
+                        - "{{in_cfg[inventory_hostname]['trunkIF'] | list}}"
+                    when:
+                        - in_cfg[inventory_hostname]['trunkIF'][item]['native_vlan'] == ""
