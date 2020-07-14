@@ -13,7 +13,7 @@
             -   name: gather nexus device information
                 nxos_facts:
                     gather_subset:
-                        - "!config"
+                        - "all"
                 register: nexus_facts
                 when:
                     -   ansible_network_os == "nxos"
@@ -21,7 +21,7 @@
             -   name: gather ios device information
                 ios_facts:
                     gather_subset:
-                        - "!config"
+                        - "all"
                 register: ios_facts
                 when:
                     -   ansible_network_os == "ios"

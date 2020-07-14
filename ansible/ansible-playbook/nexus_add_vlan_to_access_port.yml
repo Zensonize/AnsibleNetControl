@@ -8,7 +8,7 @@
         tasks:
             -   name: parse incoming configuration
                 set_fact:
-                    in_cfg: "{{jsonString | from_json}}"
+                    in_cfg: "{{cmd | from_json}}"
 
             -   name: add vlan to trunk interface by merging with old device configuration
                 nxos_l2_interfaces:
@@ -18,6 +18,6 @@
                             vlan: "{{in_cfg['vlan'] | int}}"
                     state: merged
                 with_items:
-                    - "{{in_cfg['interfaces'] | liist}}"
+                    - "{{in_cfg['access_interfaces'] | list}}"
                 when:
                     -   ansible_network_os == "nxos"

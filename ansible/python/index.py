@@ -8,13 +8,20 @@ import psycopg2
 from psycopg2 import Error
 import threading
 import time
+from datetime import datetime
 
 hostfile = open('./inventory', 'r')
 hostfile = hostfile.read()
 hosts = {}
 
+def sysTime():
+    dt = datetime.now()
+    ts = dt.strftime("[ %H:%M:%S.%f ]")
+    return ts
+
 def dbQuery(q, qData):
     results = ""
+    print (sysTime(),'executing database query',q )
     try:
         connection = psycopg2.connect(
             user = "me",
@@ -35,25 +42,26 @@ def dbQuery(q, qData):
             results = cursor.fetchall()
 
     except(Exception, psycopg2.Error) as error:
-        print("Error: ", error)
+        print(sysTime(),"Error: ", error)
         connection = None
     finally:
         if(connection != None):
             cursor.close()
             connection.close()
-            print("PostgreSQL connection is now closed")
+            print(sysTime(),"PostgreSQL connection is now closed")
             return results
 
 def bashProcess(cmd):
-    bashCommand = 'ansible-playbook ./ansible-playbook/collect_cisco_facts.yml'
+    print(sysTime(), 'bash executing',cmd)
     process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE)
     output, error = process.communicate()
     if(error):
-        print(error)
+        print(sysTime(), 'bash process error : ',cmd, '\n', 'msg:',error)
     return output
 
 def serverInit():   
     #parse invenntory file and build list of hosts
+    print(sysTime(),'initializing server')
     regx = '\[([\w]+)\]([\w\s\d.]+)'
     x = re.findall(regx, hostfile)
     for h in x:
@@ -70,18 +78,60 @@ def serverInit():
         groupName = h[0].replace('\n','')
         hosts[groupName]['os'] = h[1]
 
+    #get interface list by reading cached file from the server
+    latest_fact = dbQuery('SELECT data from facts ORDER BY dateCreated DESC LIMIT 1',[])
+    # print(latest_fact[0][0]['facts']['nexus']['192.168.10.75']['ansible_net_config'])
+    for h in hosts['nexus']['hosts']:
+        
+        hosts['nexus'][h] = {}
+        hosts['nexus'][h]['interfaces'] = latest_fact[0][0]['facts']['nexus'][h]['ansible_net_interfaces']
+
+        #parse vlan from range to list
+        vlan_List = []
+        hosts['nexus'][h]['vlan_list'] = latest_fact[0][0]['facts']['nexus'][h]['ansible_net_vlan_list']
+        for v in hosts['nexus'][h]['vlan_list']:
+
+            regx_vlan_range = '(\d)+-(\d)+'
+            vl_range = re.findall(regx_vlan_range,v)
+            if len(vl_range) == 1:
+                vlan_List.append(range(int(vl_range[0][0]),int(vl_range[0][1]) + 1))
+            else:
+                vlan_List.append(int(v))
+
+        hosts['nexus'][h]['vlan_list'] = vlan_List
+        print(sysTime(),json.dumps(hosts['nexus'][h]['vlan_list']))
+        
+        #read configuration and parse the access vlan of each access interface
+        regx_access = "interface ([\w/]+)\\n  switchport access vlan ([\d]+)"
+        access_interfaces = re.findall(regx_access,latest_fact[0][0]['facts']['nexus'][h]['ansible_net_config'])
+        for aif in access_interfaces:
+           hosts['nexus'][h]['interfaces'][aif[0]]['access_vlan'] = aif[1]
+        
+        #read configuration and parse the trunk vlan of each trunnk interface
+        regx_trunk = "interface ([\w\d/]+)[\\n\s]*(switchport mode trunk)[\\n\s]*(switchport trunk native vlan )*([\d]+)*[\\n\s]*(switchport trunk allowed vlan )*([\d-])"
+        trunk_interfaces = re.findall(regx_trunk,latest_fact[0][0]['facts']['nexus'][h]['ansible_net_config'])
+
+        for tif in trunk_interfaces:
+            hosts['nexus'][h]['interfaces'][tif[0]]['trunk'] = {}
+            hosts['nexus'][h]['interfaces'][tif[0]]['trunk']['native_vlan'] = tif[3]
+            hosts['nexus'][h]['interfaces'][tif[0]]['trunk']['allowed_vlan'] = tif[5]
+
+        for intf in hosts['nexus'][h]['interfaces']:
+            if 'mode' in hosts['nexus'][h]['interfaces'][intf]:
+                if hosts['nexus'][h]['interfaces'][intf]['mode'] == 'access' and 'access_vlan' not in hosts['nexus'][h]['interfaces'][intf]:
+                    hosts['nexus'][h]['interfaces'][intf]['access_vlan'] = '1'
+
 def gatherFacts():
     #execute playbook to gather fact
-    print('executing playbook' , threading.get_ident())
+    print('\t',sysTime(),'executing playbook', threading.get_ident())
     bashCommand = 'ansible-playbook ./ansible-playbook/collect_cisco_facts.yml'
     output = bashProcess(bashCommand)
     results = {}
     results['ansible_out'] = str(output)
-    print('finished ansible playbook execution')
-    # print(output)
+    print('\t',sysTime(),'finished ansible playbook execution')
 
     #read playbook output and return as json object
-    print('reading results from playbook execution')
+    print('\t',sysTime(),'reading results from playbook execution')
     facts = {}
     for groupName in hosts:
         facts[groupName] = {}
@@ -94,18 +144,22 @@ def gatherFacts():
     results['hosts'] = hosts
 
     #put results to the database
-    print('pushing data to database')
+    print('\t',sysTime(),'pushing data to database')
     qString = 'INSERT INTO facts (data) VALUES (%s)'
     qData = [json.dumps(results)]
     qResult = dbQuery(qString,qData)
-    print('done')
+    print('\t',sysTime(),'gatherFacts task Completed')
+
+def addVlanTask():
+    #read configuration
+
+    return 1
 
 def gatherFactsThread():
     while True:
         print('i am: ', threading.get_ident())
         gatherFacts()
         time.sleep(60)
-
 
 def mainThread():
     serverInit()
@@ -153,12 +207,64 @@ def mainThread():
         print('received request')
         req = request.get_json()
         print(json.dumps(req))
+        if req['hostGroup'] == 'nexus':
+            if req['hosts'] == 'all':
+                if req['task'] == 'add' and hosts[req['hostGroup']]['os'] ==  'nxos':
+                    #create vlan on switch
+                    bashCommand = 'ansible-playbook ./ansible-playbook/nexus_add_vlan.yml -e \'cmd=' + json.dumps(req) + '\''
+                    output = bashProcess(bashCommand)
 
-        if req['hosts'] == 'all':
-            if req['task'] == 'add' and hosts[req['hostGroup']]['os'] ==  'nxos':
-                bashCommand = 'ansible-playbook ./ansible-playbook/add_vlan.yml'
-                output = bashProcess(bashCommand)
+                    print(sysTime(),'created vlan on switch traceback\n', output)
+                    #force gather facts to store changes
+                    print(sysTime(),'force updating facts to the database')
+                    gatherFacts()
 
+                    #update host vlan information
+                    print(sysTime(),'force refreshing host variable')
+                    serverInit()
+
+                    #add vlan to access interface
+                    bashCommand = 'ansible-playbook ./ansible-playbook/nexus_add_vlan_to_access_port.yml -e \'cmd=' + json.dumps(req) + '\''
+                    output = bashProcess(bashCommand)
+
+                    print(sysTime(),'created vlan on switch traceback\n', output)
+                    #add vlan to trunk interface
+                    bashCommand = 'ansible-playbook ./ansible-playbook/nexus_add_vlan_to_trunk_port.yml -e \'cmd=' + json.dumps(req) + '\''
+                    output = bashProcess(bashCommand)
+                    
+                    print(sysTime(),'created vlan on switch traceback\n', output)
+
+                    #force gather facts to store changes
+                    print(sysTime(),'force updating facts to the database')
+                    gatherFacts()
+
+                    #update host vlan information
+                    print(sysTime(),'force refreshing host variable')
+                    serverInit()
+            else:
+                if req['task'] == 'add' and hosts[req['hostGroup']]['os'] ==  'nxos':
+                    hostStr = ','.join(req['hosts'])
+                    #create vlan on switch
+                    bashCommand = 'ansible-playbook ./ansible-play/nexus_add_vlan.yml -e \'cmd=' + json.dumps(req) + 'h='+ hostStr + '\''
+                    output = bashProcess(bashCommand)
+
+                    print(sysTime(),'created vlan on switch traceback\n', output)
+                    #force gather facts to store changes
+                    gatherFacts()
+
+                    #update host vlan information
+                    serverInit()
+
+                    #add vlan to access interface
+                    bashCommand = 'ansible-playbook ./ansible-play/nexus_add_vlan_to_access_port.yml -e \'cmd=' + json.dumps(req)  + 'h='+ hostStr + '\''
+                    output = bashProcess(bashCommand)
+
+                    print(sysTime(),'created vlan on switch traceback\n', output)
+                    #add vlan to trunk interface
+                    bashCommand = 'ansible-playbook ./ansible-play/nexus_add_vlan_to_trunk_port.yml -e \'cmd=' + json.dumps(req)  + 'h='+ hostStr + '\''
+                    output = bashProcess(bashCommand)
+                    
+                    print(sysTime(),'created vlan on switch traceback\n', output)
         return json.dumps({'result':'OK'})
 
     if __name__ == '__main__':
@@ -175,7 +281,8 @@ class threader (threading.Thread):
         gatherFactsThread()
         print ("Exiting " + self.name)
 
-thread1 = threader(1, "facts")
-thread1.start()
+# thread1 = threader(1, "facts")
+# thread1.start()
 
+#print(json.dumps(hosts, indent=3, sort_keys=True))
 mainThread()

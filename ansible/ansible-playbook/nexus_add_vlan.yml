@@ -13,11 +13,9 @@
             -   name: merge provided configuratioin with device configuratioin
                 nxos_vlans:
                     config:
-                        -   vlan_id: "{{item.split('-')[0] | int}}"
-                            name: "{{item.split('-')[1] | string}}"
+                        -   vlan_id: "{{in_cfg['vlan'] | int}}"
+                            name: "{{in_cfg['vlan_name'] | string}}"
                             state: active
                     state: merged
-                with_items:
-                    "{{in_cfg['vl'].split(',')}}"
                 when:
                     -   ansible_network_os == "nxos"
