@@ -9,6 +9,7 @@ from psycopg2 import Error
 import threading
 import time
 from datetime import datetime
+import codecs
 
 hostfile = open('./inventory', 'r')
 hostfile = hostfile.read()
@@ -53,11 +54,19 @@ def dbQuery(q, qData):
 
 def bashProcess(cmd):
     print(sysTime(), 'bash executing',cmd)
-    process = subprocess.Popen(cmd.split(), stdout=subprocess.PIPE)
+    process = subprocess.Popen(cmd.split(' '), stdout=subprocess.PIPE)
     output, error = process.communicate()
     if(error):
         print(sysTime(), 'bash process error : ',cmd, '\n', 'msg:',error)
-    return output
+    return codecs.decode(output,'unicode_escape')
+
+def bashProcessArgs(cmd):
+    print(sysTime(), 'bash executing',cmd)
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+    output, error = process.communicate()
+    if(error):
+        print(sysTime(), 'bash process error : ',cmd, '\n', 'msg:',error)
+    return codecs.decode(output,'unicode_escape')
 
 def serverInit():   
     #parse invenntory file and build list of hosts
@@ -121,6 +130,9 @@ def serverInit():
                 if hosts['nexus'][h]['interfaces'][intf]['mode'] == 'access' and 'access_vlan' not in hosts['nexus'][h]['interfaces'][intf]:
                     hosts['nexus'][h]['interfaces'][intf]['access_vlan'] = '1'
 
+    hosts['localhost']['os'] = 'Ubuntu:20.04'
+
+
 def gatherFacts():
     #execute playbook to gather fact
     print('\t',sysTime(),'executing playbook', threading.get_ident())
@@ -136,10 +148,15 @@ def gatherFacts():
     for groupName in hosts:
         facts[groupName] = {}
         for device in hosts[groupName]['hosts']:
+
             filePath = '../temp/' + device + '-' + hosts[groupName]['os'] + '.json'
-            factsfile = open(filePath, 'r')
-            factsfile = json.loads(factsfile.read())
-            facts[groupName][device] = factsfile["ansible_facts"]
+            try:
+                factsfile = open(filePath, 'r')
+                factsfile = json.loads(factsfile.read())
+                facts[groupName][device] = factsfile["ansible_facts"]
+            except FileNotFoundError as e:
+                print(sysTime(), e)
+
     results['facts'] = facts
     results['hosts'] = hosts
 
@@ -149,11 +166,6 @@ def gatherFacts():
     qData = [json.dumps(results)]
     qResult = dbQuery(qString,qData)
     print('\t',sysTime(),'gatherFacts task Completed')
-
-def addVlanTask():
-    #read configuration
-
-    return 1
 
 def gatherFactsThread():
     while True:
@@ -186,7 +198,7 @@ def mainThread():
     #     #update inventory file
     #     for g in hosts:
 
-    #     #update inventory.yml file
+    #     #update inventory.yml fil
 
     @app.route('/gatherFacts', methods=['GET'])
     def gatherFact():
@@ -210,9 +222,14 @@ def mainThread():
         if req['hostGroup'] == 'nexus':
             if req['hosts'] == 'all':
                 if req['task'] == 'add' and hosts[req['hostGroup']]['os'] ==  'nxos':
+
+                    #write config temp file
+                    conf_temp = open("../temp/config.json", "w")
+                    conf_temp.write(json.dumps(req, indent=3, sort_keys=True))
+                    conf_temp.close()
+
                     #create vlan on switch
-                    bashCommand = 'ansible-playbook ./ansible-playbook/nexus_add_vlan.yml -e \'cmd=' + json.dumps(req) + '\''
-                    output = bashProcess(bashCommand)
+                    output = bashProcessArgs(["ansible-playbook", "./ansible-playbook/nexus_add_vlan.yml"])
 
                     print(sysTime(),'created vlan on switch traceback\n', output)
                     #force gather facts to store changes
@@ -224,15 +241,12 @@ def mainThread():
                     serverInit()
 
                     #add vlan to access interface
-                    bashCommand = 'ansible-playbook ./ansible-playbook/nexus_add_vlan_to_access_port.yml -e \'cmd=' + json.dumps(req) + '\''
-                    output = bashProcess(bashCommand)
+                    output = bashProcessArgs(["ansible-playbook", "./ansible-playbook/nexus_add_vlan_to_access_port.yml"])
+                    print(sysTime(),'added vlan to access interface traceback\n', output)
 
-                    print(sysTime(),'created vlan on switch traceback\n', output)
                     #add vlan to trunk interface
-                    bashCommand = 'ansible-playbook ./ansible-playbook/nexus_add_vlan_to_trunk_port.yml -e \'cmd=' + json.dumps(req) + '\''
-                    output = bashProcess(bashCommand)
-                    
-                    print(sysTime(),'created vlan on switch traceback\n', output)
+                    output = bashProcessArgs(["ansible-playbook", "./ansible-playbook/nexus_add_vlan_to_trunk_port.yml"])
+                    print(sysTime(),'added vlan to trunk interface traceback\n', output)
 
                     #force gather facts to store changes
                     print(sysTime(),'force updating facts to the database')
@@ -245,7 +259,10 @@ def mainThread():
                 if req['task'] == 'add' and hosts[req['hostGroup']]['os'] ==  'nxos':
                     hostStr = ','.join(req['hosts'])
                     #create vlan on switch
-                    bashCommand = 'ansible-playbook ./ansible-play/nexus_add_vlan.yml -e \'cmd=' + json.dumps(req) + 'h='+ hostStr + '\''
+                    args = '\'cmd=' + json.dumps(req) + 'h='+ hostStr + '\''
+                    args = args.replace(' ','')
+
+                    bashCommand = 'ansible-playbook ansible-play/nexus_add_vlan.yml -e ' + args
                     output = bashProcess(bashCommand)
 
                     print(sysTime(),'created vlan on switch traceback\n', output)
@@ -256,12 +273,12 @@ def mainThread():
                     serverInit()
 
                     #add vlan to access interface
-                    bashCommand = 'ansible-playbook ./ansible-play/nexus_add_vlan_to_access_port.yml -e \'cmd=' + json.dumps(req)  + 'h='+ hostStr + '\''
+                    bashCommand = 'ansible-playbook ansible-play/nexus_add_vlan_to_access_port.yml -e \'cmd=' + json.dumps(req)  + 'h='+ hostStr + '\''
                     output = bashProcess(bashCommand)
 
                     print(sysTime(),'created vlan on switch traceback\n', output)
                     #add vlan to trunk interface
-                    bashCommand = 'ansible-playbook ./ansible-play/nexus_add_vlan_to_trunk_port.yml -e \'cmd=' + json.dumps(req)  + 'h='+ hostStr + '\''
+                    bashCommand = 'ansible-playbook ansible-play/nexus_add_vlan_to_trunk_port.yml -e \'cmd=' + json.dumps(req)  + 'h='+ hostStr + '\''
                     output = bashProcess(bashCommand)
                     
                     print(sysTime(),'created vlan on switch traceback\n', output)

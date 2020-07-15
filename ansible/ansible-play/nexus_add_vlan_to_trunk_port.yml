@@ -5,19 +5,19 @@
         hosts: "{{h}}"
 
         tasks:
-            -   name: parse incoming configuration
+            -   name: read config file
                 set_fact:
-                    in_cfg: "{{jsonString | from_json}}"
+                    in_cfg: "{{ lookup('file','../../temp/config.json') | from_json }}"
 
             -   name: add vlan to trunk interface by merging with old device configuration
                 nxos_l2_interfaces:
                     config:
                     -   name: "{{item | string}}"
                         trunk:
-                            allowed_vlans: "{{in_cfg['allowed_vlans']}}"
-                            native_vlan: "{{in_cfg['native_vlan']}}"
+                            allowed_vlans: "{{in_cfg['interfaces']['trunk_interfaces'][item]['allowed_vlans']}}"
+                            native_vlan: "{{in_cfg['interfaces']['trunk_interfaces'][item]['native_vlan']}}"
                     state: merged
                 with_items:
-                    - "{{in_cfg['trunk_interfaces'] | list}}"
+                    - "{{in_cfg['interfaces']['trunk_interfaces'] | list}}"
                 when:
                     -   ansible_network_os == "nxos"

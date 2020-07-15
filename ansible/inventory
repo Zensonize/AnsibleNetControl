@@ -8,5 +8,8 @@ ansible_connection=network_cli
 ansible_user=cisco
 ansible_password=cisco
 
+[localhost]
+172.0.0.1
+
 [all:children]
 nexus

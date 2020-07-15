@@ -10,3 +10,7 @@ all:
                 ansible_network_os: nxos
                 ansible_user: cisco
                 ansible_password: cisco
+        localhost:
+            hosts:
+                172.0.0.1
+                

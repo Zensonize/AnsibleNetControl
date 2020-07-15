@@ -6,9 +6,9 @@
             -   nexus
         
         tasks:
-            -   name: parse incoming configuration
+            -   name: read config file
                 set_fact:
-                    in_cfg: "{{jsonString | from_json}}"
+                    in_cfg: "{{ lookup('file','../../temp/config.json') | from_json }}"
 
             -   name: remove configuration from access port
                 nxos_l2_interfaces:

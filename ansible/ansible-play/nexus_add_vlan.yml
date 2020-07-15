@@ -5,11 +5,11 @@
         hosts: "{{h}}"
 
         tasks:
-            -   name: parse incoming configuration
+            -   name: read config file
                 set_fact:
-                    in_cfg: "{{cmd | from_json }}"
+                    in_cfg: "{{ lookup('file','../../temp/config.json') | from_json }}"
 
-            -   name: merge provided configuratioin with device configuratioin
+            -   name: merge provided configuratioin with device configuration
                 nxos_vlans:
                     config:
                         -   vlan_id: "{{in_cfg['vlan'] | int}}"

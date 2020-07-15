@@ -1,4 +1,5 @@
 ---
+
     -   name: nexus add vlan playbook
         connection: local
         gather_facts: false
@@ -6,11 +7,16 @@
             -   nexus
         
         tasks:
-            -   name: parse incoming configuration
-                set_fact:
-                    in_cfg: "{{cmd | from_json }}"
 
-            -   name: merge provided configuratioin with device configuratioin
+            -   name: read config file
+                set_fact:
+                    in_cfg: "{{ lookup('file','../../temp/config.json') | from_json }}"
+
+            -   name: debug
+                debug:
+                    msg: "{{in_cfg}}"
+
+            -   name: merge provided configuratioin with device configuration
                 nxos_vlans:
                     config:
                         -   vlan_id: "{{in_cfg['vlan'] | int}}"
