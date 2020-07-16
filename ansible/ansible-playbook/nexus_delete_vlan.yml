@@ -16,16 +16,32 @@
                         -   name: "{{item | string}}"
                     state: deleted
                 with_items:
-                    - "{{in_cfg[inventory_hostname]['accessIF'] | list}}"
+                    - "{{in_cfg['interfaces'][inventory_hostname]['access_interfaces'] | list}}"
+                when:
+                    - "{{in_cfg['interfaces'][ansible_hostame]}} is defined"
 
             -   name: remove vlan from trunk port without native vlan
                 nxos_l2_interfaces:
                     config:
                         -   name: "{{item | string}}"
                             trunk:
-                                allowed_vlans: "{{in_cfg[inventory_hostname]['trunkIF'][item]['allowed_vlan'] | string}}"
+                                allowed_vlans: "{{in_cfg['interfaces'][inventory_hostname]['trunk_interfaces'][item]['allowed_vlans'] | string}}"
                     state: replaced
                     with_items:
-                        - "{{in_cfg[inventory_hostname]['trunkIF'] | list}}"
+                        - "{{in_cfg['interfaces'][inventory_hostname]['trunk_interfaces'] | list}}"
                     when:
-                        - in_cfg[inventory_hostname]['trunkIF'][item]['native_vlan'] == ""
+                        - "{{in_cfg['interfaces'][inventory_hostame]}} is defined"
+                        - in_cfg['interfaces'][inventory_hostname]['trunk_interfaces'][item]['native_vlan'] == ""
+            
+            -   name: remove vlan from trunk port with native vlan
+                nxos_l2_interfaces:
+                    config:
+                        -   name: "{{item | string}}"
+                            trunk:
+                                allowed_vlans: "{{in_cfg['interfaces'][inventory_hostname]['trunk_interfaces'][item]['allowed_vlans'] | string}}"
+                    state: replaced
+                    with_items:
+                        - "{{in_cfg['interfaces'][inventory_hostname]['trunk_interfaces'] | list}}"
+                    when:
+                        - "{{in_cfg['interfaces'][inventory_hostame]}} is defined"
+                        - in_cfg['interfaces'][inventory_hostname]['trunk_interfaces'][item]['native_vlan'] == ""

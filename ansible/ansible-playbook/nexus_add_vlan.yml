@@ -16,7 +16,7 @@
                 debug:
                     msg: "{{in_cfg}}"
 
-            -   name: merge provided configuratioin with device configuration
+            -   name: merge provided configuration with device configuration
                 nxos_vlans:
                     config:
                         -   vlan_id: "{{in_cfg['vlan'] | int}}"

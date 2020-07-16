@@ -15,10 +15,10 @@
                     config:
                     -   name: "{{item | string}}"
                         trunk:
-                            allowed_vlans: "{{in_cfg['interfaces']['trunk_interfaces'][item]['allowed_vlans']}}"
-                            native_vlan: "{{in_cfg['interfaces']['trunk_interfaces'][item]['native_vlan']}}"
+                            allowed_vlans: "{{in_cfg['hosts'][inventory_hostname]['trunk_interfaces'][item]['allowed_vlans']}}"
+                            native_vlan: "{{in_cfg['hosts'][inventory_hostname]['trunk_interfaces'][item]['native_vlan']}}"
                     state: merged
                 with_items:
-                    - "{{in_cfg['interfaces']['trunk_interfaces'] | list}}"
+                    - "{{in_cfg['hosts'][inventory_hostname]['trunk_interfaces'] | list}}"
                 when:
                     -   ansible_network_os == "nxos"
