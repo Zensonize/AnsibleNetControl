@@ -98,17 +98,22 @@ def serverInit():
         #parse vlan from range to list
         vlan_List = []
         hosts['nexus'][h]['vlan_list'] = latest_fact[0][0]['facts']['nexus'][h]['ansible_net_vlan_list']
+
+        hosts['nexus'][h]['vlans'] = {}
+
         for v in hosts['nexus'][h]['vlan_list']:
+            vlan_List.append(int(v))
 
-            regx_vlan_range = '(\d)+-(\d)+'
-            vl_range = re.findall(regx_vlan_range,v)
-            if len(vl_range) == 1:
-                vlan_List.append(range(int(vl_range[0][0]),int(vl_range[0][1]) + 1))
-            else:
-                vlan_List.append(int(v))
+        # collect vlan status
+        # print(sysTime,json.dumps(latest_fact[0][0]['facts']['nexus'][h],indent=3,sort_keys=True))
+        
+        # for v in latest_fact[0][0]['facts']['nexus'][h]['ansible_network_resources']['vlans']:
+        #     hosts['nexus'][h]['vlans'][v['vlan_id']] = v
+        #     if 'name' not in v:
+        #         hosts['nexus'][h]['vlans'][v['vlan_id']]['name'] = ''
 
-        hosts['nexus'][h]['vlan_list'] = vlan_List
-        print(sysTime(),json.dumps(hosts['nexus'][h]['vlan_list']))
+        # hosts['nexus'][h]['vlan_list'] = vlan_List
+        # print(sysTime(),json.dumps(hosts['nexus'][h]['vlan_list']))
         
         #read configuration and parse the access vlan of each access interface
         regx_access = "interface ([\w/]+)\\n  switchport access vlan ([\d]+)"
@@ -120,6 +125,7 @@ def serverInit():
         regx_trunk = "interface ([\w\d/]+)[\\n\s]*(switchport mode trunk)[\\n\s]*(switchport trunk native vlan )*([\d]+)*[\\n\s]*(switchport trunk allowed vlan )*([\d-])"
         trunk_interfaces = re.findall(regx_trunk,latest_fact[0][0]['facts']['nexus'][h]['ansible_net_config'])
 
+        # read interface information from l2_interface
         for tif in trunk_interfaces:
             hosts['nexus'][h]['interfaces'][tif[0]]['trunk'] = {}
             hosts['nexus'][h]['interfaces'][tif[0]]['trunk']['native_vlan'] = tif[3]
@@ -130,6 +136,21 @@ def serverInit():
                 if hosts['nexus'][h]['interfaces'][intf]['mode'] == 'access' and 'access_vlan' not in hosts['nexus'][h]['interfaces'][intf]:
                     hosts['nexus'][h]['interfaces'][intf]['access_vlan'] = '1'
 
+        # new code version to support gather facts with network resources
+        # for i in latest_fact[0][0]['facts']['nexus'][h]['ansible_network_resources']['l2_interfaces']:
+        #     if 'access' in i and 'trunk' in i:
+        #         print(sysTime(), 'WARNING conflict configuration at',i['name'],'\n',json.dumps(i,indent=3,sort_keys=True))
+        #     if 'access' in i:
+        #         hosts['nexus'][h]['interfaces'][i['name']]['access_vlan'] = i['access']['vlan']
+        #     if 'trunk' in i:
+        #         hosts['nexus'][h]['interfaces'][i['name']]['trunk'] = {}
+        #         if 'native_vlan' in i['trunk']:
+        #             hosts['nexus'][h]['interfaces'][i['name']]['trunk']['native_vlan'] = i['trunk']['native_vlan']
+        #         if 'allowed_vlans' in i['trunk']:
+        #             hosts['nexus'][h]['interfaces'][i['name']]['trunk']['allowed_vlans'] = i['trunk']['allowed_vlans']
+
+        #     print(sysTime(),json.dumps(hosts['nexus'][h]['interfaces'][i['name']],indent=3,sort_keys=True))
+        
     hosts['localhost']['os'] = 'Ubuntu:20.04'
 
 
@@ -283,6 +304,13 @@ def mainThread():
                     
                     print(sysTime(),'created vlan on switch traceback\n', output)
         return json.dumps({'result':'OK'})
+
+    @app.route('/test/query', methods=['POST'])
+    def testQuery():
+        req = request.get_json()
+        print(sysTime(),'received request', json.dumps(req))
+        qResult = dbQuery(req['qString'],[])
+        return json.dumps(qResult)
 
     if __name__ == '__main__':
         app.run(host='0.0.0.0',port=4000,debug=True)

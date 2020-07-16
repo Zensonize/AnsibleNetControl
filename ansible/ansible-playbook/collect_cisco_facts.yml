@@ -14,6 +14,7 @@
                 nxos_facts:
                     gather_subset:
                         - "all"
+                    gather_network_resources: all
                 register: nexus_facts
                 when:
                     -   ansible_network_os == "nxos"
@@ -22,6 +23,7 @@
                 ios_facts:
                     gather_subset:
                         - "all"
+                    gather_network_resources: all
                 register: ios_facts
                 when:
                     -   ansible_network_os == "ios"
