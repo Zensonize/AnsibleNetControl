@@ -45,3 +45,9 @@
                     when:
                         - "{{in_cfg['interfaces'][inventory_hostame]}} is defined"
                         - in_cfg['interfaces'][inventory_hostname]['trunk_interfaces'][item]['native_vlan'] == ""
+            
+            -   name: remove vlan
+                nxos_vlans:
+                    config:
+                        - vlan_id: "{{in_cfg['vlan']| int}}"
+                    state: deleted

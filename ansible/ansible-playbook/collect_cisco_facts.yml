@@ -3,7 +3,7 @@
         connection: local
         gather_facts: false
         hosts:
-            -   all
+            -   nexus
         
         tasks: 
             # -   name: debug host vars
@@ -19,16 +19,36 @@
                 when:
                     -   ansible_network_os == "nxos"
             
-            -   name: gather ios device information
-                ios_facts:
-                    gather_subset:
-                        - "all"
-                    gather_network_resources: all
-                register: ios_facts
-                when:
-                    -   ansible_network_os == "ios"
+            # -   name: gather ios device information
+            #     ios_facts:
+            #         gather_subset:
+            #             - "all"
+            #         gather_network_resources: all
+            #     register: ios_facts
+            #     when:
+            #         -   ansible_network_os == "ios"
 
-            -   name: export facts to "{{inventory_hostname}}"-facts".json file
+            -   name: gather traffic information
+                nxos_command:
+                    commands: 
+                        -   terminal length 0
+                        -   show interface
+                register: stdout
+                when:
+                    -   ansible_network_os == "nxos"
+
+            -   name: set fact
+                set_fact:
+                    nx_facts:
+                        nx_fact: "{{nexus_facts}}"
+                        int_fact: "{{stdout['stdout']}}"
+                when:
+                    -   ansible_network_os == "nxos"
+
+            -   name: export facts to "<<hostname>>"-facts".json file
                 copy:
-                    content: "{{nexus_facts}}"
+                    content: "{{nx_facts}}"
                     dest: "../temp/{{inventory_hostname}}-{{ansible_network_os}}.json"
+                when:
+                    -   ansible_network_os == "nxos"
+                    
