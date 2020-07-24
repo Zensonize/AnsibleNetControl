@@ -80,12 +80,15 @@ def serverInit():
     print(colored(sysTime(),'cyan'),'initializing server')
     regx = '\[([\w]+)\]([\w\s\d.]+)'
     x = re.findall(regx, hostfile)
+
     for h in x:
         groupName = h[0].replace('\n','')
         groupHosts = h[1].split('\n')
         groupHosts = list(filter(('').__ne__, groupHosts))
         hosts[groupName] = {}
         hosts[groupName]['hosts'] = groupHosts
+
+    hosts['localhost']['os'] = 'Ubuntu:20.04'
 
     #get the device os
     regx = '\[([\w]+):vars\][\w\s\d.]*ansible_network_os=([\w]+)'
@@ -150,8 +153,6 @@ def serverInit():
         gatherFacts()
         serverInit()     
 
-    hosts['localhost']['os'] = 'Ubuntu:20.04'
-
 #white on_magenta
 def gatherFacts():
     #execute playbook to gather fact
@@ -169,8 +170,9 @@ def gatherFacts():
         facts[groupName] = {}
         for device in hosts[groupName]['hosts']:
 
-            filePath = '../temp/' + device + '-' + hosts[groupName]['os'] + '.json'
+            
             try:
+                filePath = '../temp/' + device + '-' + hosts[groupName]['os'] + '.json'
                 factsfile = open(filePath, 'r')
                 factsfile = json.loads(factsfile.read())
                 facts[groupName][device] = factsfile['nx_fact']['ansible_facts']
@@ -245,6 +247,8 @@ def gatherFacts():
                 # print(json.dumps(facts[groupName][device]['ansible_net_interfaces']['Ethernet1/1'], indent=3, sort_keys=True))
             except FileNotFoundError as e:
                 print(colored(sysTime(),'yellow'), colored(e,'yellow'))
+            except KeyError as e:
+                print(colored(sysTime(),'yellow'), colored(e, 'yellow'), colored('traceback','yellow'), colored(json.dumps(hosts[groupName],indent=3),'grey'))
 
     results['facts'] = facts
     results['hosts'] = hosts
@@ -260,7 +264,7 @@ def gatherFactsThread():
     while True:
         print(sysTime(), 'i am thread: ', threading.get_ident)
         gatherFacts()
-        time.sleep(60)
+        time.sleep(300)
 
 #on_blue
 def mainThread():
@@ -388,8 +392,8 @@ class threader (threading.Thread):
         gatherFactsThread()
         print (sysTime(), "Exiting Thread" + self.name)
 
-# thread1 = threader(1, "facts")
-# thread1.start()
+thread1 = threader(1, "facts")
+thread1.start()
 
 # print(json.dumps(hosts, indent=3, sort_keys=True))
 mainThread()
