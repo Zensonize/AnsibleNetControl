@@ -1,16 +1,22 @@
 <template>
   <div id="app">
-    {{msg}}
+    <NavBar/>
+    <router-view></router-view>
   </div>
 </template>
 
 <script>
+  import NavBar from './components/Nav_Bar.vue'
+
   export default {
     name: 'app',
     data () {
       return {
-        msg: 'Welcome to Your Vue.js App'
+        
       }
+    },
+    components: {
+      NavBar
     }
   }
   </script>
