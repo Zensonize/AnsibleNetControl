@@ -133,7 +133,7 @@ def serverInit():
             # new code version to support gather facts with network resources
             for i in latest_fact[0][0]['facts']['nexus'][h]['ansible_network_resources']['l2_interfaces']:
                 if 'access' in i and 'trunk' in i:
-                    print(sysTime(), 'WARNING conflict configuration at',i['name'],'\n',json.dumps(i,indent=3,sort_keys=True))
+                    print(colored(sysTime(),'yellow'), colored('WARNING conflict configuration at','yellow'),colored(i['name'],'yellow'),'\n',colored(json.dumps(i,indent=3,sort_keys=True),'grey'))
                 if 'access' in i:
                     hosts['nexus'][h]['interfaces'][i['name']]['access_vlan'] = i['access']['vlan']
                 if 'trunk' in i:
@@ -179,11 +179,11 @@ def gatherFacts():
 
                 mgmnt_regx = '(mgmt[\d]+).*\\n.*\\n\s*.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\s*(\d*\s*\w*\s*\w*\s*\w*)\s*(\d*\s*[\w/]*),\s*(\d*\s*[\w/]*)\s*(\d*\s*\w*\s*\w*\s*\w*)\s*(\d*\s*[\w/]*),\s*(\d*\s*[\w/]*)\s*(Rx)\s*(\d+)\s*(input packets)\s*(\d+)\s*(unicast packets)\s*(\d+)\s*(multicast packets)\s*(\d+)\s*(broadcast packets)\s*(\d+)\s*(bytes)\s*(Tx)\s*(\d+)\s*(output packets)\s*(\d+)\s*(unicast packets)\s*(\d+)\s*(multicast packets)\s*(\d+)\s*(broadcast packets)\s*(\d+)\s*(bytes)'
 
-                intfacts = open('../temp/sh_int_temp.json', 'r')
-                intfacts = json.loads(intfacts.read())
+                # intfacts = open('../temp/sh_int_temp.json', 'r')
+                # intfacts = json.loads(intfacts.read())
 
                 # print(intfacts['int_fact'][1])
-                mgmt_data = re.findall(mgmnt_regx, intfacts['int_fact'][1])
+                mgmt_data = re.findall(mgmnt_regx, factsfile['int_fact'][1])
                 
                 for item in mgmt_data:
                     facts[groupName][device]['ansible_net_interfaces'][item[0]]['stats'] = {}
@@ -216,7 +216,7 @@ def gatherFacts():
                     # print(json.dumps(facts[groupName][device]['ansible_net_interfaces'][item[0]], indent=3, sort_keys=True))
 
                 interf_regx = '(Ethernet\d+/\d+).*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\s*(\d*\s*\w*\s*input\s*rate)\s*(\d*\s*[\w/]*),\\s*(\d\s*[\w/]*)\\n\s*(\d*\s*\w*\s*\w*\s*\w*)\s*(\d*\s*[\w/]*),\\s*(\d\s*[\w/]*)\\s*.*\\n.*\s*(RX)\s*(\d+)\s*(unicast packets)\s*(\d+)\s*(multicast packets)\s*(\d+)\s*(broadcast packets)\\n\s*(\d+)\s*(input packets)\s*(\d+)\s*(bytes)\\n.*\\n.*\\n.*\\n.*\\n.*\\n.*\\n\s*(TX)\s*(\d+)\s*(unicast packets)\s*(\d+)\s*(multicast packets)\s*(\d+)\s*(broadcast packets)\\n\s*(\d+)\s*(output packets)\s*(\d+)\s*(bytes)'
-                interf_data = re.findall(interf_regx, intfacts['int_fact'][1])
+                interf_data = re.findall(interf_regx, factsfile['int_fact'][1])
 
                 # print(sysTime(),len(interf_data))
                 # print(interf_data[0])
@@ -292,7 +292,7 @@ def mainThread():
 
     @app.route('/gatherFacts', methods=['GET'])
     def gatherFact():
-        print(sysTime(),'received request')
+        print(sysTime(),'received gather facts request')
         req = request.get_json()
         print(json.dumps(req))
         if req['gathermode'] == 'force':
