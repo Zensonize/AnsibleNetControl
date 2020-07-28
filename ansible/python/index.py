@@ -18,6 +18,7 @@ from termcolor import colored
 hostfile = open('./inventory', 'r')
 hostfile = hostfile.read()
 hosts = {}
+dashboard = {}
 
 def _build_cors_prelight_response():
     response = make_response()
@@ -162,10 +163,35 @@ def serverInit():
 
             #     print(sysTime(),json.dumps(hosts['nexus'][h]['interfaces'][i['name']],indent=3,sort_keys=True))
 
+        print(colored(sysTime(),'cyan'),'checking reachability')
+        updateDashboardStatus()
     else:
         #if the database is empty force initial facts gathering then pull the data again
         gatherFacts()
-        serverInit()     
+        # serverInit()     
+
+def updateDashboardStatus():
+    print(colored(sysTime(),'cyan'),'updating dashboard status')
+    dashboard['total_groups'] = len(hosts)
+    dashboard['host_status'] = {}
+    dashboard['host_status']['online'] = []
+    dashboard['host_status']['offline'] = []
+    
+    #count online hosts
+    stdout = bashProcess('ansible all -m ping')
+    regx = '([\d.]+)\s*[|]\s*([\w!]+)'
+    x = re.findall(regx, stdout)
+    print(x)
+    for h in x:
+        if h[0] == '172.0.0.1':
+            dashboard['host_status']['online'].append(h[0])
+        elif h[1] == 'SUCCESS':
+            dashboard['host_status']['online'].append(h[0])
+        else:
+            dashboard['host_status']['offline'].append(h[0])
+
+    #count total host
+    dashboard['total_hosts'] = len(dashboard['host_status']['online']) + len(dashboard['host_status']['offline'])
 
 #white on_magenta
 def gatherFacts():
@@ -184,7 +210,6 @@ def gatherFacts():
         facts[groupName] = {}
         for device in hosts[groupName]['hosts']:
 
-            
             try:
                 filePath = '../temp/' + device + '-' + hosts[groupName]['os'] + '.json'
                 factsfile = open(filePath, 'r')
@@ -273,12 +298,21 @@ def gatherFacts():
     qData = [json.dumps(results)]
     qResult = dbQuery(qString,qData)
     print(colored(sysTime(),'white','on_magenta'),'gatherFacts task Completed')
+    print(colored(sysTime(),'white','on_magenta'),'updating Host information')
+    serverInit()
+    updateDashboardStatus()
 
 def gatherFactsThread():
     while True:
         print(sysTime(), 'i am thread: ', threading.get_ident)
         gatherFacts()
         time.sleep(300)
+
+def livelinessThread():
+    while True:
+        print(sysTime(), 'pinging to all host to check reachablilty')
+        updateDashboardStatus()
+        time.sleep(100)
 
 #on_blue
 def mainThread():
@@ -296,7 +330,12 @@ def mainThread():
         if request.method == 'OPTIONS':
             return _build_cors_prelight_response()
         elif request.method == 'GET':
-            return _corsify_actual_response(jsonify(hosts))
+            # updateDashboardStatus()
+            re = {
+                'hosts': hosts,
+                'dashboard' : dashboard
+            }
+            return _corsify_actual_response(jsonify(re))
         else:
             raise RuntimeError("Weird - don't know how to handle method {}".format(request.method))
 
@@ -333,7 +372,6 @@ def mainThread():
             qResult = dbQuery(qString,qData)
             if qResult == []:
                 qResult = dbQuery('SELECT factsID,dateCreated::text,data FROM facts ORDER BY dateCreated DESC LIMIT 5',[])
-            
             return _corsify_actual_response(jsonify({"qResult":qResult[0]}))
 
         else:
@@ -420,11 +458,15 @@ class threader (threading.Thread):
 
     def run(self):
         print (sysTime(), "Starting Thread: " + self.name)
-        gatherFactsThread()
+        if self.name == 'facts':
+            gatherFactsThread()
+        elif self.name == 'liveliness':
+            livelinessThread()
         print (sysTime(), "Exiting Thread" + self.name)
 
 # thread1 = threader(1, "facts")
 # thread1.start()
-
+# thread2 = threader(2, "liveliness")
+# thread2.start()
 # print(json.dumps(hosts, indent=3, sort_keys=True))
 mainThread()
