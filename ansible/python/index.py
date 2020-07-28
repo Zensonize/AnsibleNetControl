@@ -1,5 +1,8 @@
-from flask import Flask
+from flask import Flask, make_response
 from flask import request
+from flask import Response
+from flask import jsonify
+from flask_cors import CORS
 import subprocess
 import re
 import json
@@ -15,6 +18,17 @@ from termcolor import colored
 hostfile = open('./inventory', 'r')
 hostfile = hostfile.read()
 hosts = {}
+
+def _build_cors_prelight_response():
+    response = make_response()
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    response.headers.add('Access-Control-Allow-Headers', "*")
+    response.headers.add('Access-Control-Allow-Methods', "*")
+    return response
+
+def _corsify_actual_response(response):
+    response.headers.add("Access-Control-Allow-Origin", "*")
+    return response
 
 def sysTime():
     dt = datetime.now()
@@ -271,13 +285,21 @@ def mainThread():
     serverInit()
 
     app = Flask(__name__)
+    CORS(app)
+
     @app.route('/')
     def hello_world():
-        return 'Hello World'
+        return response
 
-    @app.route('/hosts')
+    @app.route('/hosts', methods=['GET', 'OPTIONS'])
     def getHosts():
-        return json.dumps(hosts)
+        if request.method == 'OPTIONS':
+            return _build_cors_prelight_response()
+        elif request.method == 'GET':
+            return _corsify_actual_response(jsonify(hosts))
+        else:
+            raise RuntimeError("Weird - don't know how to handle method {}".format(request.method))
+
 
     # @app.route('/hosts/add', methods=['POST'])
     # def addHosts():
@@ -294,19 +316,28 @@ def mainThread():
 
     #     #update inventory.yml fil
 
-    @app.route('/gatherFacts', methods=['GET'])
+    @app.route('/gatherFacts', methods=['GET', 'OPTIONS'])
     def gatherFact():
-        print(sysTime(),'received gather facts request')
-        req = request.get_json()
-        print(json.dumps(req))
-        if req['gathermode'] == 'force':
-            gatherFacts()
+        if request.method == 'OPTIONS':
+            return _build_cors_prelight_response()
+        elif request.method == 'GET':
+            print(sysTime(),'received gather facts request')
+            req = request.get_json()
+            print(json.dumps(req))
+            if req['gathermode'] == 'force':
+                gatherFacts()
 
-        #query data from the database
-        qString = 'SELECT factsID,dateCreated::text,data FROM facts WHERE dateCreated > %s::timestamptz'
-        qData = [req['lastQuery']]
-        qResult = dbQuery(qString,qData)
-        return json.dumps(qResult)
+            #query data from the database
+            qString = 'SELECT factsID,dateCreated::text,data FROM facts WHERE dateCreated > %s::timestamptz'
+            qData = [req['lastQuery']]
+            qResult = dbQuery(qString,qData)
+            if qResult == []:
+                qResult = dbQuery('SELECT factsID,dateCreated::text,data FROM facts ORDER BY dateCreated DESC LIMIT 5',[])
+            
+            return _corsify_actual_response(jsonify({"qResult":qResult[0]}))
+
+        else:
+            raise RuntimeError("Weird - don't know how to handle method {}".format(request.method))
 
     @app.route('/config/predef/vlan', methods=['POST'])
     def predefVlanTask():
@@ -392,8 +423,8 @@ class threader (threading.Thread):
         gatherFactsThread()
         print (sysTime(), "Exiting Thread" + self.name)
 
-thread1 = threader(1, "facts")
-thread1.start()
+# thread1 = threader(1, "facts")
+# thread1.start()
 
 # print(json.dumps(hosts, indent=3, sort_keys=True))
 mainThread()

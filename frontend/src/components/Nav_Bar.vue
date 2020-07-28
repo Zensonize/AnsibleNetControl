@@ -1,5 +1,5 @@
 <template>
-  <nav class="navbar navbar-expand-md navbar-light bg-light\">
+  <nav class="navbar navbar-expand-md navbar-light bg-light navbar-static-top\">
     <router-link class='navbar-brand' to='/'>Ansible Net Control</router-link>
     <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNavDropdown"
       aria-controls="navbarNavDropdown" aria-expanded="false" aria-label="Toggle navigation">
