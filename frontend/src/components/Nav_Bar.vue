@@ -13,17 +13,11 @@
         <li class="nav-item" v-show="section.length != 2">
             <router-link class='nav-link' to='/'>Dashboard</router-link>
         </li>
-        <li class="nav-item active dropdown" v-show="section.includes('config')">
-          <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Config</a>
-          <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
-            <router-link class='nav-link' to='/config/vlan'>VLAN</router-link>
-          </div>
+        <li class="nav-item active" v-show="section.length != 2">
+            <router-link class='nav-link' to='/config'>Config</router-link>
         </li>
-        <li class="nav-item dropdown" v-show="!section.includes('config')">
-          <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownMenuLink" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Config</a>
-          <div class="dropdown-menu" aria-labelledby="navbarDropdownMenuLink">
-            <router-link class='nav-link' to='/config/vlan'>VLAN</router-link>
-          </div>
+        <li class="nav-item" v-show="section.length == 2">
+            <router-link class='nav-link' to='/config'>Config</router-link>
         </li>
       </ul>
     </div>

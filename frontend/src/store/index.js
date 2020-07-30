@@ -8,7 +8,9 @@ Vue.use(Vuex)
 
 const state = {
     hosts: {},
-    facts: {}
+    facts: {},
+    dashboard: {},
+    lastFetchTime: ""
 }
 
 export default new Vuex.Store({

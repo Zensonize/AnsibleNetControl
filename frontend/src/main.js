@@ -7,12 +7,16 @@ import store from './store'
 Vue.use(VueRouter)
 
 import App from './App.vue'
-import Config from './components/Config.vue'
+import ConfigHost from './components/config/ConfigHost'
+import ConfigHome from './components/config/ConfigHome'
 import DashBoard from './components/Dashboard.vue'
 
 const routes = [
   {
-    path: '/config/:type', component: Config
+    path: '/config', component: ConfigHome
+  },
+  {
+    path: '/config/:host/', component: ConfigHost,
   },
   {
     path: '/', component: DashBoard

@@ -14,7 +14,10 @@ export const mutations = {
         state.hosts = payload
         console.log(state.hosts)
     },
-    [types.FETCH_HOSTS] (state, payload) {
-        state.hosts = payload
+    [types.INIT_DASHBOARD] (state, payload) {
+        state.dashboard = payload
+    },
+    [types.SAVE_FETCH_TIME] (state, payload) {
+        state.lastFetchTime = payload
     }
 }

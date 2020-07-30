@@ -7,14 +7,18 @@
 
 <script>
   import NavBar from './components/Nav_Bar.vue'
+  import {mapActions} from 'vuex'
 
   export default {
     name: 'app',
-    data () {
-      return {
-        
-      }
+    created() {
+      this.initHosts()
+      this.initDashboard()
     },
+    methods: mapActions([
+      'initHosts',
+      'initDashboard'
+    ]),
     components: {
       NavBar
     }

@@ -2,6 +2,7 @@
   <div class="host-table">
     <h3>{{hostName}}</h3>
     <!-- <p>{{hostInformation}}</p> -->
+    <div class="table-responsive-md">
     <table class="table">
       <thead>
         <tr class="table-header">
@@ -26,11 +27,12 @@
         </tr>
       </tbody>
     </table>
+    </div>
   </div>
 </template>
 <script>
   export default {
-    props: ['hostName', 'hostInformation', 'index'],
+    props: ['groupName','hostName', 'hostInformation', 'index'],
   }
 
 </script>

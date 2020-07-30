@@ -1,7 +1,7 @@
 <template>
-    <div class="group-table" v-show="!groupName.includes('localhost')">
+    <div class="group-table">
         <h1>{{groupName}}</h1>
-        <HostTable v-for="(host,index) in hostList.hosts" v-bind:key="index" v-bind:hostName="host" v-bind:hostInformation="hostList[host]"/>
+        <HostTable v-for="(host,index) in hostList" v-bind:key="index" v-bind:hostName="index" v-bind:hostInformation="host" v-bind:groupName="groupName"/>
     </div>
 </template>
 
