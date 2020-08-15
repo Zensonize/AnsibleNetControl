@@ -21,4 +21,4 @@
                 with_items:
                     - "{{in_cfg['hosts'][inventory_hostname]['trunk_interfaces'] | list}}"
                 when:
-                    -   ansible_network_os == "nxos"
+                    -   in_cfg['hosts'][inventory_hostname] is defined

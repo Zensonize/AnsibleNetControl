@@ -9,3 +9,45 @@
 .table-row {
     text-align: center;
 }
+
+.config-host-card:hover {
+    background-color: cadetblue;
+}
+
+.interface-table {
+    margin-left: 1%;
+    margin-right: 1%;
+}
+
+.nav-padding {
+    padding-top: 70px;
+}
+
+.status_title {
+    display: inline;
+}
+
+.status_stat {
+    display: inline;
+}
+
+.attention {
+    color: #f03a3e;
+}
+
+.ok {
+    color: #39cc64;
+}
+
+.intf-badge {
+    margin-left: 1%;
+    margin-right: 1%;
+}
+
+.pointer:hover {
+    cursor: pointer;
+}
+
+.navbar {
+    background-color: #0056C7;
+}

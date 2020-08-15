@@ -1,0 +1,52 @@
+---
+
+    -   name: nexus add vlan playbook
+        connection: local
+        gather_facts: false
+        hosts:
+            -   nexus
+        
+        tasks:
+
+            -   name: read config file
+                set_fact:
+                    in_cfg: "{{ lookup('file','../../temp/config.json') | from_json }}"
+
+            -   name: debug
+                debug:
+                    msg: "{{in_cfg}}"
+
+            -   name: merge provided configuration with device configuration
+                nxos_vlans:
+                    config:
+                        -   vlan_id: "{{in_cfg['vlan'] | int}}"
+                            name: "{{in_cfg['vlan_name'] | string}}"
+                            state: active
+                    state: merged
+                when:
+                    -   in_cfg['hosts'][inventory_hostname] is defined
+                
+            -   name: add vlan to access interface by merging with old device configuration
+                nxos_l2_interfaces:
+                        config:
+                        -   name: "{{item | string}}"
+                            access:
+                                vlan: "{{in_cfg['vlan'] | int}}"
+                        state: merged
+                with_items:
+                    - "{{in_cfg['hosts'][inventory_hostname]['access_interfaces'] | list}}"
+                when:
+                    -   in_cfg['hosts'][inventory_hostname] is defined
+
+            -   name: add vlan to trunk interface by merging with old device configuration
+                nxos_l2_interfaces:
+                        config:
+                        -   name: "{{item | string}}"
+                            trunk:
+                                allowed_vlans: "{{in_cfg['hosts'][inventory_hostname]['trunk_interfaces'][item]['allowed_vlans']}}"
+                                native_vlan: "{{in_cfg['hosts'][inventory_hostname]['trunk_interfaces'][item]['native_vlan'] | int}}"
+                        state: merged
+                with_items:
+                    - "{{in_cfg['hosts'][inventory_hostname]['trunk_interfaces'] | list}}"
+                when:
+                    -   in_cfg['hosts'][inventory_hostname] is defined

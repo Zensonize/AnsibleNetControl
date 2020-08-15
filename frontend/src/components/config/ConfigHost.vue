@@ -1,23 +1,31 @@
 <template>
-    <div class="config-home">
-        <div class="vlan table">
-            <table class="table" v-for="(groups, index) in $store.state.hosts.hosts" v-bind:key="index" v-show="!index.includes('localhost')">
-                <thead>
-                    <tr>
-                        <th scope="col" colspan="6">{{index}}</th>
-                    </tr>
-                    <tr class="table-header">
-                        <th scope="col">Host</th>
-                        <th scope="col">VLANS</th>
-                    </tr>
-                </thead>
-                <tbody v-if="!index.includes('localhost')">
-                    <tr v-for="(host,index) in groups.hosts" v-bind:key="index">
-                        <td>{{host}}</td>
-                        <td>{{groups[host]['vlan_list'].join(', ')}}</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+    <div class="config-host">
+        <VlanTableCard v-bind:groupName="groupName" v-bind:hostName="hostName" v-if="typeof($store.state.latestFacts[0]) != 'undefined'"/>
+        <TrunkVlanTableCard v-bind:groupName="groupName" v-bind:hostName="hostName" v-if="typeof($store.state.hosts[groupName]) != 'undefined'"/>
+
+        <AddVlanCard v-bind:groupName="groupName" v-bind:hostName="hostName" v-if="typeof($store.state.latestFacts[0]) != 'undefined'"/>
+        <DeleteVlanCard v-bind:groupName="groupName" v-bind:hostName="hostName" v-if="typeof($store.state.hosts[groupName]) != 'undefined' && typeof($store.state.latestFacts[0]) != 'undefined'"/>
     </div>
 </template>
+
+<script>
+    import VlanTableCard from './widgets/VlanTableCard'
+    import AddVlanCard from './widgets/AddVlanCard'
+    import DeleteVlanCard from './widgets/DeleteVlanCard'
+    import TrunkVlanTableCard from './widgets/TrunkVlanTableCard'
+
+    export default {
+        data () {
+            return {
+                groupName: this.$route.params.group,
+                hostName: this.$route.params.address
+            }
+        },
+        components: {
+            VlanTableCard,
+            AddVlanCard,
+            DeleteVlanCard,
+            TrunkVlanTableCard
+        }
+    }
+</script>

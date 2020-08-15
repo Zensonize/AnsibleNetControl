@@ -16,38 +16,30 @@
                         -   name: "{{item | string}}"
                     state: deleted
                 with_items:
-                    - "{{in_cfg['interfaces'][inventory_hostname]['access_interfaces'] | list}}"
+                    - "{{in_cfg['hosts'][inventory_hostname]['access_interfaces'] | list}}"
                 when:
-                    - "{{in_cfg['interfaces'][ansible_hostame]}} is defined"
-
-            -   name: remove vlan from trunk port without native vlan
-                nxos_l2_interfaces:
-                    config:
-                        -   name: "{{item | string}}"
-                            trunk:
-                                allowed_vlans: "{{in_cfg['interfaces'][inventory_hostname]['trunk_interfaces'][item]['allowed_vlans'] | string}}"
-                    state: replaced
-                    with_items:
-                        - "{{in_cfg['interfaces'][inventory_hostname]['trunk_interfaces'] | list}}"
-                    when:
-                        - "{{in_cfg['interfaces'][inventory_hostame]}} is defined"
-                        - in_cfg['interfaces'][inventory_hostname]['trunk_interfaces'][item]['native_vlan'] == ""
+                    -   in_cfg['hosts'][inventory_hostname] is defined
             
             -   name: remove vlan from trunk port with native vlan
                 nxos_l2_interfaces:
                     config:
                         -   name: "{{item | string}}"
                             trunk:
-                                allowed_vlans: "{{in_cfg['interfaces'][inventory_hostname]['trunk_interfaces'][item]['allowed_vlans'] | string}}"
+                                allowed_vlans: "{{in_cfg['hosts'][inventory_hostname]['trunk_interfaces'][item]['allowed_vlans'] | string}}"
+                                native_vlan: "{{in_cfg['hosts'][inventory_hostname]['trunk_interfaces'][item]['native_vlan'] | int}}"
                     state: replaced
-                    with_items:
-                        - "{{in_cfg['interfaces'][inventory_hostname]['trunk_interfaces'] | list}}"
-                    when:
-                        - "{{in_cfg['interfaces'][inventory_hostame]}} is defined"
-                        - in_cfg['interfaces'][inventory_hostname]['trunk_interfaces'][item]['native_vlan'] == ""
+                # debug:
+                #     msg: "{{item}}"
+                with_items:
+                    -   "{{in_cfg['hosts'][inventory_hostname]['trunk_interfaces'] | list}}"
+                when:
+                    -   in_cfg['hosts'][inventory_hostname] is defined
+                    -   in_cfg['hosts'][inventory_hostname]['trunk_interfaces'] != {}
             
             -   name: remove vlan
                 nxos_vlans:
                     config:
                         - vlan_id: "{{in_cfg['vlan']| int}}"
                     state: deleted
+                when:
+                    -   in_cfg['hosts'][inventory_hostname] is defined

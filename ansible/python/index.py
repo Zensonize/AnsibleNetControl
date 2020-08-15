@@ -135,23 +135,22 @@ def init_Hosts_From_Database_Cache():
                 hostData['nexus'][h]['vlans']['vlan'][v['vlan_id']] = v
                 if 'name' not in v:
                     hostData['nexus'][h]['vlans']['vlan'][v['vlan_id']]['name'] = ''
-
-            #set default vlan to vlan 1 if not config
-            for intf in hostData['nexus'][h]['interfaces']:
-                if 'mode' in hostData['nexus'][h]['interfaces'][intf]:
-                    if hostData['nexus'][h]['interfaces'][intf]['mode'] == 'access' and 'access_vlan' not in hostData['nexus'][h]['interfaces'][intf]:
-                        hostData['nexus'][h]['interfaces'][intf]['access_vlan'] = 1
             
             #add interface traffic to the interface data
             for intf in latest_fact[0][0]['facts']['nexus'][h]['ansible_network_resources']['l2_interfaces']:
                 if 'access' in intf and 'trunk' in intf:
+                    hostData['nexus'][h]['messages'] = []
+                    hostData['nexus'][h]['messages'].append({
+                        "type": "warning",
+                        "msg": "conflict configuration at" + intf['name'],
+                        "debug_dump" : json.dumps(intf,indent=3,sort_keys=True)
+                    })
                     print(colored(sysTime(),'yellow'), colored('WARNING conflict configuration at','yellow'),colored(intf['name'],'yellow'),'\n',colored(json.dumps(intf,indent=3,sort_keys=True),'yellow'))
-                
+        
                 hostData['nexus'][h]['interfaces'][intf['name']]['vlan'] = {}
-                
+
                 if 'access' in intf:
                     hostData['nexus'][h]['interfaces'][intf['name']]['vlan']['access_vlan'] = intf['access']['vlan']
-
                 if 'trunk' in intf:
                     hostData['nexus'][h]['interfaces'][intf['name']]['vlan']['trunk'] = {}
 
@@ -159,6 +158,16 @@ def init_Hosts_From_Database_Cache():
                         hostData['nexus'][h]['interfaces'][intf['name']]['vlan']['trunk']['native_vlan'] = intf['trunk']['native_vlan']
                     if 'allowed_vlans' in intf['trunk']:
                         hostData['nexus'][h]['interfaces'][intf['name']]['vlan']['trunk']['allowed_vlans'] = intf['trunk']['allowed_vlans']
+                    if 'native_vlan' not in intf['trunk'] and 'allowed_vlans' in intf['trunk']:
+                        hostData['nexus'][h]['interfaces'][intf['name']]['vlan']['trunk']['native_vlan'] = 1
+            
+
+            for intf,intf_d in hostData['nexus'][h]['interfaces'].items():
+                if 'vlan' not in intf_d:
+                    hostData['nexus'][h]['interfaces'][intf]['vlan'] = {
+                        "access_vlan": 1
+                    }
+
     else:
         gatherFacts_Forced()
         init_Hosts_From_Database_Cache()
@@ -176,7 +185,7 @@ def reachability_Check():
 
     print(sysTime(), 'pinging devices')
 
-    stdout = bashProcess('ansible all -m ping')
+    stdout = bashProcess('ansible nexus -m ping')
     regx = '([\d.]+)\s*[|]\s*([\w!]+)'
     stdout = re.findall(regx, stdout)
 
@@ -191,6 +200,11 @@ def reachability_Check():
 
     dbData['host_status']['total_hosts'] = len(dbData['host_status']['online']) + len(dbData['host_status']['offline'])
     dbData['host_status']['total_groups'] = len(hostData)
+
+    if len(dbData['host_status']['offline']) > 0:
+        dbData['network_status'] = "Attention"
+    else:
+        dbData['network_status'] = "Ok"
 
     print(sysTime(), 'updated liveliness information')
     print(json.dumps(dbData, indent=3, sort_keys=True))
@@ -254,7 +268,7 @@ def gatherFacts_Forced():
                 interf_data = re.findall(interf_regx, factsfile['int_fact'][1])
 
                 for item in interf_data:
-                    facts[groupName][device]['ansible_net_interfaces'][item[0]]['stats'] = {
+                    facts[g][h]['ansible_net_interfaces'][item[0]]['stats'] = {
                         "Rx": {
                             "ave": {
                                 "name": str(item[1]),
@@ -288,8 +302,8 @@ def gatherFacts_Forced():
 
     results = {
         "facts": facts,
-        "hosts": hosts,
-        'ansible_out': str(output)
+        "hosts": hostData,
+        'ansible_out': str(stdout)
     }
 
     #put data to the database
@@ -373,11 +387,12 @@ def getDashboard():
         return _corsify_actual_response(jsonify(dashboardData))
     else:
         raise RuntimeError("Weird - don't know how to handle method {}".format(request.method))
-@app.route('/gatherFacts', methods=['GET','OPTIONS'])
+
+@app.route('/gatherFacts', methods=['POST','OPTIONS'])
 def gatherFact():
     if request.method == 'OPTIONS':
         return _build_cors_prelight_response()
-    elif request.method == 'GET':
+    elif request.method == 'POST':
         print(colored(sysTime(), 'cyan'), 'received gather facts request')
         req = request.get_json()
         
@@ -385,12 +400,57 @@ def gatherFact():
             gatherFacts_Forced()
 
         #query data from the database
-        qResult = dbQuery('SELECT factsID,dateCreated::text,data FROM facts WHERE dateCreated > %s::timestamptz',[req['lastQuery']])
+        if req['query_limit'] == '1':
+            qResult = dbQuery('SELECT factsID,dateCreated::text,data FROM facts ORDER BY dateCreated DESC LIMIT 1',[])
+        else:
+            qResult = dbQuery('SELECT factsID,dateCreated::text,data FROM facts WHERE dateCreated > %s::timestamptz ORDER BY dateCreated DESC',[req['lastQuery']])
     
         if qResult == []:
-            qResult = dbQuery('SELECT factsID,dateCreated::text,data FROM facts ORDER BY dateCreated DESC LIMIT 5',[])
+            qResult = dbQuery('SELECT factsID,dateCreated::text,data FROM facts ORDER BY dateCreated DESC LIMIT 12',[])
 
-        return _corsify_actual_response(jsonify({"qResult":qResult[0]}))
+        #format results to array of objects
+        result = []
+        for row in qResult:
+            temp = {
+                "factsID" : row[0],
+                "dateCreated" : row[1],
+                "data" : row[2]
+            }
+            result.append(temp)
+
+        return _corsify_actual_response(jsonify(result))
+
+    else:
+        raise RuntimeError("Weird - don't know how to handle method {}".format(request.method))
+
+@app.route('/gatherFactsV2', methods=['POST','OPTIONS'])
+def gatherFactV2():
+    if request.method == 'OPTIONS':
+        return _build_cors_prelight_response()
+    elif request.method == 'POST':
+        print(colored(sysTime(), 'cyan'), 'received gather facts request')
+        req = request.get_json()
+        
+        if req['gathermode'] == 'force':
+            gatherFacts_Forced()
+
+        #query data from the database
+        if req['query_limit'] == '1':
+            qResult = dbQuery('SELECT factsID,dateCreated::text,data FROM facts ORDER BY dateCreated DESC LIMIT 1',[])
+        else:    
+            qResult = dbQuery('SELECT factsID,dateCreated::text,data FROM facts ORDER BY dateCreated DESC LIMIT 12',[])
+
+        #format results to array of objects
+        result = []
+        for row in qResult:
+            temp = {
+                "factsID" : row[0],
+                "dateCreated" : row[1],
+                "data" : row[2]
+            }
+            result.append(temp)
+
+        return _corsify_actual_response(jsonify(result))
 
     else:
         raise RuntimeError("Weird - don't know how to handle method {}".format(request.method))
@@ -414,23 +474,23 @@ def vlanConfig():
                 conf_temp.close()
 
                 #create vlan on switch
-                output = bashProcessArgs(["ansible-playbook", "./ansible-playbook/nexus_add_vlan.yml"])
+                output = bashProcess("ansible-playbook ./ansible-playbook/nexus_add_vlan.yml")
                 print(colored(sysTime(),'cyan'),'created vlan on switch traceback\n', output)
 
-                #force gather facts to store changes
-                print(colored(sysTime(),'cyan'),'force updating facts to the database')
-                gatherFacts_Forced()
+                # #force gather facts to store changes
+                # print(colored(sysTime(),'cyan'),'force updating facts to the database')
+                # gatherFacts_Forced()
 
-                #update host vlan information
-                print(colored(sysTime(),'cyan'),'force refreshing host variable')
-                init_Hosts_From_Database_Cache()
+                # #update host vlan information
+                # print(colored(sysTime(),'cyan'),'force refreshing host variable')
+                # init_Hosts_From_Database_Cache()
 
-                #add vlan to access interface
-                output = bashProcessArgs(["ansible-playbook", "./ansible-playbook/nexus_add_vlan_to_access_port.yml"])
+                # #add vlan to access interface
+                output = bashProcess("ansible-playbook ./ansible-playbook/nexus_add_vlan_to_access_port.yml")
                 print(colored(sysTime(),'cyan'),'added vlan to access interface traceback\n', output)
 
-                #add vlan to trunk interface
-                output = bashProcessArgs(["ansible-playbook", "./ansible-playbook/nexus_add_vlan_to_trunk_port.yml"])
+                # #add vlan to trunk interface
+                output = bashProcess("ansible-playbook ./ansible-playbook/nexus_add_vlan_to_trunk_port.yml")
                 print(colored(sysTime(),'cyan'),'added vlan to trunk interface traceback\n', output)
 
                 #force gather facts to store changes
@@ -450,7 +510,8 @@ def vlanConfig():
 
                 #execute playbook
                 print(colored(sysTime(),'cyan'),'executing playbook to delete vlan')
-                output = bashProcessArgs(["ansible-playbook", "./ansible-playbook/nexus_delete_vlan.yml"])
+                output = bashProcess("ansible-playbook ./ansible-playbook/nexus_delete_vlan.yml")
+                print(colored(sysTime(),'cyan'),'deleted vlan on switch traceback\n', output)
                 print(colored(sysTime(),'cyan'), 'finished executing playbook')
 
                 #force gather facts to store changes
@@ -462,8 +523,8 @@ def vlanConfig():
                 init_Hosts_From_Database_Cache()
 
         re = {
-            'hosts': hosts,
-            'dashboard': dashboard
+            'hosts': hostData,
+            'dashboard': dashboardData
         }
         return _corsify_actual_response(jsonify(re))
 

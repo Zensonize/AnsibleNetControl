@@ -9,21 +9,38 @@ Vue.use(VueRouter)
 import App from './App.vue'
 import ConfigHost from './components/config/ConfigHost'
 import ConfigHome from './components/config/ConfigHome'
-import DashBoard from './components/Dashboard.vue'
+import DashBoard from './components/Dashboard'
+import HostView from './components/hostview/HostView'
 
 const routes = [
   {
-    path: '/config', component: ConfigHome
+    path: '/config', 
+    component: ConfigHome,
+    name: 'configHome'
   },
   {
-    path: '/config/:host/', component: ConfigHost,
+    path: '/config/:group/:address/', 
+    component: ConfigHost,
+    name: 'configHost'
   },
   {
-    path: '/', component: DashBoard
+    path: '/', 
+    component: DashBoard,
+    name: 'Dashboard'
+  },
+  {
+    path: '/host/:group/:address', 
+    component: HostView,
+    name: 'HostView'
+  },
+  {
+    path: '*',
+    redirect: '/'
   }
 ]
 
 const router = new VueRouter({
+  base: process.env.BASE_URL,
   routes
 })
 

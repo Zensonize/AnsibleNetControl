@@ -1,5 +1,10 @@
 export const INIT_FACTS = 'INIT_FACTS'
 export const FETCH_FACTS = 'FETCH_FACTS'
+
 export const INIT_HOSTS = 'INIT_HOSTS'
+
 export const INIT_DASHBOARD = 'INIT_DASHBOARD'
+
 export const SAVE_FETCH_TIME = 'SAVE_FETCH_TIME'
+
+export const INIT_LATEST_FACTS = 'INIT_LATEST_FACTS'

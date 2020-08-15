@@ -1,7 +1,6 @@
 <template>
     <!-- show list of vlans in each host -->
-    <div class="config">
-        <!-- <h2>Config Home</h2> -->
+    <div class="host-selection">
         <div class="card border-0 mb-3 mr-3 ml-3">
             <div class="host-group" v-for="(group,group_index) in $store.state.hosts" v-bind:key="group_index">
                 <div class="row">
@@ -17,7 +16,6 @@
                                         <h4 class="card-title">{{host_index}}</h4>
                                     </div>
                                 </div>
-                                
                                 <div class="row">
                                     <div class="col">
                                         <h6 class="card-subtitle mb-2 text-muted">{{Object.size(host.interfaces)}}
@@ -33,7 +31,6 @@
                     </div>
                 </div>
             </div>
-
         </div>
     </div>
 </template>
@@ -56,9 +53,12 @@
         methods: {
             redirect(hostGroup, hostAddress) {
                 this.$router.push({
-                    path: '/config/' + hostGroup + '/' + hostAddress
+                    path: '/host/' + hostGroup + '/' + hostAddress
                 })
             }
+        },
+        components: {
+
         }
 
     }

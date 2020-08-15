@@ -24,4 +24,4 @@
                             state: active
                     state: merged
                 when:
-                    -   ansible_network_os == "nxos"
+                    -   in_cfg['hosts'][inventory_hostname] is defined

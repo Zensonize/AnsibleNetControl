@@ -1,7 +1,8 @@
 <template>
   <div id="app">
-    <NavBar/>
-    <router-view></router-view>
+    <NavBar class="navbar-fixed-top"/>
+    <div class="nav-padding"></div>
+    <router-view ></router-view>
   </div>
 </template>
 
@@ -14,10 +15,14 @@
     created() {
       this.initHosts()
       this.initDashboard()
+      this.initFactsV2(),
+      this.initLatestFacts()
     },
     methods: mapActions([
       'initHosts',
-      'initDashboard'
+      'initDashboard',
+      'initFactsV2',
+      'initLatestFacts'
     ]),
     components: {
       NavBar
